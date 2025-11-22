@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CRM - Sistema de Gestión</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header { 
+            background: #2c3e50; 
+            color: white; 
+            padding: 20px; 
+            border-radius: 5px; 
+            margin-bottom: 20px;
+        }
+        .filters { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 5px; 
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .customer-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            background: white;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .customer-table th, .customer-table td { 
+            padding: 12px; 
+            text-align: left; 
+            border-bottom: 1px solid #ddd; 
+        }
+        .customer-table th { 
+            background: #34495e; 
+            color: white; 
+            font-weight: bold;
+        }
+        .customer-table tr:hover { 
+            background: #f8f9fa; 
+        }
+        .search-box { 
+            padding: 10px; 
+            width: 300px; 
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .btn { 
+            padding: 10px 15px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+        }
+        .btn-primary { 
+            background: #3498db; 
+            color: white; 
+        }
+        .btn-success { 
+            background: #27ae60; 
+            color: white; 
+        }
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        .sort-options { 
+            margin: 15px 0; 
+        }
+        .sort-options a {
+            margin-right: 5px;
+        }
+        .stats {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏢 Sistema CRM</h1>
+        <p>Gestión de Clientes e Interacciones</p>
+    </div>
+
+    <div class="stats">
+        <strong>Total de clientes:</strong> {{ customers|length }}
+    </div>
+
+    <div class="filters">
+        <form method="get">
+            <input type="text" name="search" class="search-box" 
+                   placeholder="Buscar por nombre o empresa..." 
+                   value="{{ search_query }}">
+            
+            <button type="submit" class="btn btn-primary">🔍 Buscar</button>
+            
+            <button type="submit" name="birthday" value="this_week" class="btn btn-success">
+                🎂 Cumpleaños esta semana
+            </button>
+            
+            <a href="?" class="btn btn-secondary">🔄 Limpiar</a>
+        </form>
+
+        <div class="sort-options">
+            <strong>Ordenar por:</strong>
+            <a href="?sort=first_name&search={{ search_query }}&birthday={{ birthday_filter }}" 
+               class="btn {% if sort_by == 'first_name' %}btn-primary{% else %}btn-secondary{% endif %}">
+               👤 Nombre
+            </a>
+            <a href="?sort=company&search={{ search_query }}&birthday={{ birthday_filter }}" 
+               class="btn {% if sort_by == 'company' %}btn-primary{% else %}btn-secondary{% endif %}">
+               🏢 Empresa
+            </a>
+            <a href="?sort=birth_date&search={{ search_query }}&birthday={{ birthday_filter }}" 
+               class="btn {% if sort_by == 'birth_date' %}btn-primary{% else %}btn-secondary{% endif %}">
+               🎂 Cumpleaños
+            </a>
+            <a href="?sort=last_interaction&search={{ search_query }}&birthday={{ birthday_filter }}" 
+               class="btn {% if sort_by == 'last_interaction' %}btn-primary{% else %}btn-secondary{% endif %}">
+               📞 Última Interacción
+            </a>
+        </div>
+    </div>
+
+    {% if customers %}
+    <table class="customer-table">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Empresa</th>
+                <th>Cumpleaños</th>
+                <th>Representante</th>
+                <th>Última Interacción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for customer in customers %}
+            <tr>
+                <td><strong>{{ customer.full_name }}</strong></td>
+                <td>{{ customer.company.name }}</td>
+                <td>{{ customer.birth_date|date:"F j" }}</td>
+                <td>{{ customer.sales_rep.first_name }}</td>
+                <td>
+                    {% with customer.get_last_interaction as last_interaction %}
+                        {% if last_interaction %}
+                            {{ last_interaction.interaction_date|timesince }} ago 
+                            ({{ last_interaction.get_interaction_type_display }})
+                        {% else %}
+                            <span style="color: #999;">Sin interacciones</span>
+                        {% endif %}
+                    {% endwith %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="text-align: center; padding: 40px; background: white; border-radius: 5px;">
+        <h3>No se encontraron clientes</h3>
+        <p>Intenta con otros criterios de búsqueda</p>
+        <a href="?" class="btn btn-primary">Ver todos los clientes</a>
+    </div>
+    {% endif %}
+</body>
+</html>
