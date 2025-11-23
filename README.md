@@ -2,7 +2,7 @@
 Sharp Santillan
 
 # Crear env, activarlo e instalar requirements.txt
-python -m venv env
+python -m venv env <br>
 env\Scripts\activate
 pip install -r requirements.txt
 
