@@ -70,7 +70,7 @@ class Command(BaseCommand):
 
         self.stdout.write('✓ 1000 clientes creados')
 
-        # 4. Crear interacciones (10 por cliente para pruebas)
+        # 4. Crear interacciones (500 por cliente para pruebas)
         interaction_types = ['Call', 'Email', 'SMS', 'Facebook', 'WhatsApp', 'Meeting']
         
         # Borrar interacciones existentes
@@ -78,8 +78,8 @@ class Command(BaseCommand):
         
         total_interactions = 0
         for customer in customers:
-            # Crear 10 interacciones por cliente
-            for j in range(10):
+            # Crear 500 interacciones por cliente
+            for j in range(500):
                 days_ago = random.randint(0, 365)
                 interaction_date = timezone.now() - timedelta(days=days_ago)
                 
