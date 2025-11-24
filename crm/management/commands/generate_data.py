@@ -5,6 +5,7 @@ from crm.models import Company, Customer, Interaction
 from datetime import datetime, timedelta, date
 import random
 from django.utils import timezone
+import numpy as np
 
 class Command(BaseCommand):
     help = 'Generate fake data for CRM'
@@ -43,56 +44,110 @@ class Command(BaseCommand):
             companies.append(company)
             self.stdout.write(f'Compañía creada: {company.name}')
 
-        # 3. Crear clientes (1000)
+        # 3. Crear 1000 clientes 
         first_names = ['Ana', 'Carlos', 'María', 'José', 'Laura', 'Miguel', 'Sofia', 'David', 'Elena', 'Pablo']
         last_names = ['García', 'Rodríguez', 'Martínez', 'López', 'González', 'Pérez', 'Sánchez', 'Ramírez', 'Torres', 'Flores']
 
-        # Primero borrar clientes existentes para evitar duplicados
+        # Borrar clientes existentes para evitar duplicados
         Customer.objects.all().delete()
         
+        # Generar datos de clientes con numpy
+        n_customers = 1000
+        
+        # Generar años, meses y días de nacimiento de forma vectorizada
+        birth_years = np.random.randint(1960, 2001, n_customers)
+        birth_months = np.random.randint(1, 13, n_customers)
+        birth_days = np.random.randint(1, 29, n_customers)
+        
+        # Seleccionar compañías y representantes aleatorios
+        company_indices = np.random.randint(0, len(companies), n_customers)
+        user_indices = np.random.randint(0, len(users), n_customers)
+        
+        # Crear clientes en lotes
         customers = []
-        for i in range(1000):
-            birth_year = random.randint(1960, 2000)
-            birth_month = random.randint(1, 12)
-            birth_day = random.randint(1, 28)
+        batch_size = 100
+        
+        for i in range(0, n_customers, batch_size):
+            end_idx = min(i + batch_size, n_customers)
+            batch_customers = []
             
-            customer = Customer.objects.create(
-                first_name=random.choice(first_names),
-                last_name=random.choice(last_names),
-                birth_date=date(birth_year, birth_month, birth_day),
-                company=random.choice(companies),
-                sales_rep=random.choice(users)
-            )
-            customers.append(customer)
+            for j in range(i, end_idx):
+                customer = Customer(
+                    first_name=random.choice(first_names),
+                    last_name=random.choice(last_names),
+                    birth_date=date(int(birth_years[j]), int(birth_months[j]), int(birth_days[j])),
+                    company=companies[company_indices[j]],
+                    sales_rep=users[user_indices[j]]
+                )
+                batch_customers.append(customer)
             
-            if i % 100 == 0:
-                self.stdout.write(f'Clientes creados: {i}')
+            # Bulk create del lote
+            Customer.objects.bulk_create(batch_customers)
+            customers.extend(batch_customers)
+            self.stdout.write(f'Clientes creados: {end_idx}/{n_customers}')
 
         self.stdout.write('✓ 1000 clientes creados')
 
-        # 4. Crear interacciones (500 por cliente para pruebas)
+        # 4. Crear 500 interacciones por cliente
         interaction_types = ['Call', 'Email', 'SMS', 'Facebook', 'WhatsApp', 'Meeting']
         
         # Borrar interacciones existentes
         Interaction.objects.all().delete()
+
+        self.stdout.write('Creando interacciones con numpy...')
+
+        total_interactions_needed = len(customers) * 500
+        batch_size = 10000
+
         
-        total_interactions = 0
-        for customer in customers:
-            # Crear 500 interacciones por cliente
-            for j in range(500):
-                days_ago = random.randint(0, 365)
-                interaction_date = timezone.now() - timedelta(days=days_ago)
-                
-                Interaction.objects.create(
+        # 1. Generar índices de clientes (cada cliente repetido 500 veces)
+        customer_indices = np.repeat(np.arange(len(customers)), 500)
+        
+        # 2. Generar tipos de interacción aleatorios
+        random_types = np.random.choice(interaction_types, total_interactions_needed)
+        
+        # 3. Generar días aleatorios (0-365 días atrás)
+        random_days = np.random.randint(0, 366, total_interactions_needed)
+        
+        # 4. Generar todas las fechas de una vez
+        now = timezone.now()
+        random_dates = [now - timedelta(days=int(days)) for days in random_days]
+        
+        # 5. Crear interacciones en lotes
+        interactions_batch = []
+        
+        for i in range(total_interactions_needed):
+            customer_idx = customer_indices[i]
+            customer = customers[customer_idx]
+            interaction_num = (i % 500) + 1
+            
+            interactions_batch.append(
+                Interaction(
                     customer=customer,
-                    interaction_type=random.choice(interaction_types),
-                    notes=f"Interacción {j+1} con {customer.full_name}",
-                    interaction_date=interaction_date
+                    interaction_type=str(random_types[i]),
+                    notes=f"Interacción {interaction_num} con {customer.full_name}",
+                    interaction_date=random_dates[i]
                 )
-                total_interactions += 1
+            )
+            
+            # Crear por lotes para no sobrecargar la memoria
+            if len(interactions_batch) >= batch_size:
+                Interaction.objects.bulk_create(interactions_batch)
+                self.stdout.write(f'Lote creado: {len(interactions_batch)} interacciones (total: {i+1}/{total_interactions_needed})')
+                interactions_batch = []
+        
+        # Crear las interacciones restantes
+        if interactions_batch:
+            Interaction.objects.bulk_create(interactions_batch)
+            self.stdout.write(f'Lote final creado: {len(interactions_batch)} interacciones')
 
-            if customers.index(customer) % 100 == 0:
-                self.stdout.write(f'Interacciones creadas: {total_interactions}')
-
-        self.stdout.write(f'✓ {total_interactions} interacciones creadas')
+        self.stdout.write(f'✓ {total_interactions_needed} interacciones creadas con numpy')
         self.stdout.write(self.style.SUCCESS('¡Todos los datos generados exitosamente!'))
+
+        # Estadísticas de rendimiento
+        self.stdout.write(f'\n--- ESTADÍSTICAS ---')
+        self.stdout.write(f'• Usuarios creados: {len(users)}')
+        self.stdout.write(f'• Compañías creadas: {len(companies)}')
+        self.stdout.write(f'• Clientes creados: {len(customers)}')
+        self.stdout.write(f'• Interacciones creadas: {total_interactions_needed:,}')
+        self.stdout.write(f'• Relación interacciones/cliente: 500:1')
